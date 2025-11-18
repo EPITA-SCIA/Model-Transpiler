@@ -1,7 +1,7 @@
-double exp(double x, int n_term) {
+double exp_approx(double x, int n_term) {
     if (x < 0)
     {
-        return 1.0 / exp(-x, n_term);
+        return 1.0 / exp_approx(-x, n_term);
     }
 
     double res = 0;
