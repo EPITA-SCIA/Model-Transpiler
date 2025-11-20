@@ -15,19 +15,18 @@ class FunctionLoader:
     
         for file in c_dir.glob("main_functions/*.c"):
             function_name = file.stem
-            function_map["c"]["main"][function_name] = self._load_file(file)
+            function_map["c"]["main"][function_name] = f"\n{self._load_file(file)}\n"
 
         for file in c_dir.glob("regular_functions/*.c"):
             function_name = file.stem
-            function_map["c"]["regular"][function_name] = self._load_file(file)
+            function_map["c"]["regular"][function_name] = f"\n{self._load_file(file)}\n"
     
         for file in verilog_dir.glob("main_functions/*.v"):
             function_name = file.stem
-            function_map["verilog"]["main"][function_name] = self._load_file(file)
-
+            function_map["verilog"]["main"][function_name] = f"\n{self._load_file(file)}\n"
         for file in verilog_dir.glob("regular_functions/*.v"):
             function_name = file.stem
-            function_map["verilog"]["regular"][function_name] = self._load_file(file)
+            function_map["verilog"]["regular"][function_name] = f"\n{self._load_file(file)}\n"
         
         return function_map
     
