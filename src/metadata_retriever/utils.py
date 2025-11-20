@@ -126,12 +126,26 @@ def get_double_matrix_definition(name: str, python_matrix: list, language: str):
             return f"// empty matrix {name}"
         nrows = len(python_matrix)
         ncols = len(python_matrix[0])
-        decl = f"real {name}[0:{nrows - 1}][0:{ncols - 1}];"
+        # Flatten to 1-D array to avoid iverilog multi-dim assignment issues
+        # Access via: {name}_flat[row*ncols + col]
+        flat_size = nrows * ncols
+        decl = f"real {name}_flat[0:{flat_size - 1}];"
         init_lines = []
         for i, row in enumerate(python_matrix):
             for j, val in enumerate(row):
-                init_lines.append(f"    {name}[{i}][{j}] = {float(val)};")
-        return decl + "\ninitial begin\n" + "\n".join(init_lines) + "\nend"
+                flat_idx = i * ncols + j
+                init_lines.append(f"    {name}_flat[{flat_idx}] = {float(val)};")
+        # Add helper function to access matrix
+        helper = f"""
+    // Helper function to index {name} as 2D via flattened array
+    function real {name};
+        input integer row;
+        input integer col;
+        begin
+            {name} = {name}_flat[row * {ncols} + col];
+        end
+    endfunction"""
+        return decl + "\ninitial begin\n" + "\n".join(init_lines) + "\nend" + helper
     else:
         raise ValueError(f"Unsupported language: {language}")
 
