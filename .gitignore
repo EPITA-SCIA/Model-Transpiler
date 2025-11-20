@@ -266,3 +266,6 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# Remove produced files
+output.*

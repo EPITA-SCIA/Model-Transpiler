@@ -13,11 +13,11 @@ def main():
 
     function_loader = FunctionLoader(conf["FunctionLoader"])
 
-    model = joblib.load("tests/tree.joblib")
+    model = joblib.load("tests/logistic_binary.joblib")
     transpiler = Transpiler(
         model=model,
-        language="c",
-        output_file=Path("output.c"),
+        language="verilog",
+        output_file=Path("output.v"),
     )
     transpiler.transpile(function_loader=function_loader)
 
