@@ -2,8 +2,7 @@ from pathlib import Path
 
 from src.dependencies import get_dependencies
 from src.function_loader import FunctionLoader
-from src.metadata_retriever.metadata_retriever import MetadataRetriever
-from src.utils import write_to_file
+from src.utils import get_metadata_retriever_class, write_to_file
 
 
 class Transpiler:
@@ -16,7 +15,10 @@ class Transpiler:
 
     def transpile(self, function_loader: FunctionLoader):
         res = ""
-        metadata_retriever = MetadataRetriever(model=self.model, language=self.language)
+        # metadata_retriever = MetadataRetriever(model=self.model, language=self.language)
+        metadata_retriever = get_metadata_retriever_class(model=self.model)(
+            model=self.model, language=self.language
+        )
         metadata, model_name = metadata_retriever.retrieve_metadata()
         res += function_loader[self.language]["regular"]["includes"] + "\n"
         res += "\n".join(metadata) + "\n"
