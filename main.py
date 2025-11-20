@@ -13,16 +13,13 @@ def main():
     model = joblib.load("tests/tree.joblib")
     metadata_retriever = MetadataRetriever(model=model, language="c")
     metadata = metadata_retriever.retrieve_metadata()
-    print(metadata)
-    # dependencies = get_dependencies("logistic_regression")
-    # print(dependencies)
-    # hardcode values
-    # for dep in dependencies:
-    #     # Here you would do something with the loaded dependency
-    #     # For demonstration, we just print its content
-    #     print(function_loader["c"]["regular"][dep])
-    # print(function_loader["c"]["regular"]["logistic_regression"])
-    # print(function_loader["c"]["main"]["logistic_regression"])
+    print(function_loader["c"]["regular"]["includes"])
+    print("\n".join(metadata))
+    dependencies = get_dependencies("decision_tree")
+    for dep in dependencies:
+        print(function_loader["c"]["regular"][dep])
+    print(function_loader["c"]["regular"]["decision_tree"])
+    print(function_loader["c"]["main"]["decision_tree"])
 
 
 if __name__ == "__main__":
