@@ -1,5 +1,7 @@
 from pathlib import Path
+
 import joblib
+
 
 def load_models(paths) -> list:
     models = []
@@ -7,6 +9,7 @@ def load_models(paths) -> list:
         model = joblib.load(path)
         models.append(model)
     return models
+
 
 def write_to_file(path: Path, content):
     path.parent.mkdir(parents=True, exist_ok=True)

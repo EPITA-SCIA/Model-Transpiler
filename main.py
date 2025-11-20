@@ -1,9 +1,11 @@
 import configparser
-from src.function_loader import FunctionLoader
-import joblib
 from pathlib import Path
 
+import joblib
+
+from src.function_loader import FunctionLoader
 from src.transpiler import Transpiler
+
 
 def main():
     conf = configparser.ConfigParser()
@@ -18,6 +20,7 @@ def main():
         output_file=Path("output.c"),
     )
     transpiler.transpile(function_loader=function_loader)
+
 
 if __name__ == "__main__":
     main()

@@ -8,11 +8,13 @@ class FunctionLoader:
         self.map = self._get_function_map(self.vendor_directory)
 
     def _get_function_map(self, directory: Path) -> dict:
-        function_map = {"c": {"main": dict(), "regular": dict()}, "verilog": {"main": dict(), "regular": dict()}}
+        function_map = {
+            "c": {"main": dict(), "regular": dict()},
+            "verilog": {"main": dict(), "regular": dict()},
+        }
         c_dir = directory / "c"
         verilog_dir = directory / "verilog"
 
-    
         for file in c_dir.glob("main_functions/*.c"):
             function_name = file.stem
             function_map["c"]["main"][function_name] = f"\n{self._load_file(file)}\n"
@@ -20,17 +22,19 @@ class FunctionLoader:
         for file in c_dir.glob("regular_functions/*.c"):
             function_name = file.stem
             function_map["c"]["regular"][function_name] = f"\n{self._load_file(file)}\n"
-    
+
         for file in verilog_dir.glob("main_functions/*.v"):
             function_name = file.stem
-            function_map["verilog"]["main"][function_name] = f"\n{self._load_file(file)}\n"
+            function_map["verilog"]["main"][function_name] = (
+                f"\n{self._load_file(file)}\n"
+            )
         for file in verilog_dir.glob("regular_functions/*.v"):
             function_name = file.stem
-            function_map["verilog"]["regular"][function_name] = f"\n{self._load_file(file)}\n"
-        
-        return function_map
-    
+            function_map["verilog"]["regular"][function_name] = (
+                f"\n{self._load_file(file)}\n"
+            )
 
+        return function_map
 
     def _load_file(self, path: Path) -> str:
         with open(path, "r") as file:

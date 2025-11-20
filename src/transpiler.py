@@ -1,8 +1,10 @@
 from pathlib import Path
-from src.function_loader import FunctionLoader
-from src.utils import write_to_file
-from src.metadata_retriever.metadata_retriever import MetadataRetriever
+
 from src.dependencies import get_dependencies
+from src.function_loader import FunctionLoader
+from src.metadata_retriever.metadata_retriever import MetadataRetriever
+from src.utils import write_to_file
+
 
 class Transpiler:
     __slots__ = ("model", "language", "output_file")
