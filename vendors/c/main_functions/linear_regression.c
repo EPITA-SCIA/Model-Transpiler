@@ -1,8 +1,3 @@
-/*
-int n_thetas = 4;
-double thetas[4] = {2.1835375182032752,0.0015311924364074755,-0.5030500981617257,-2.3800354562177355};
-*/
-
 void main(int argc, char** argv){
     if (argc != n_thetas){
         printf("Usage: %s <feature1> <feature2> ... <featureN>\n", argv[0]);
