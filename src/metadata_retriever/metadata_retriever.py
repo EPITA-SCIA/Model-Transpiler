@@ -16,9 +16,12 @@ from src.metadata_retriever.utils import (
 
 
 class MetadataRetriever:
+    __slots__ = ("model", "language", "model_name")
+
     def __init__(self, model, language: str):
         self.model = model
         self.language = language
+        self.model_name = None  # should be overwritten in subclasses
 
     def _get_model(self):
         if isinstance(self.model, Pipeline):
@@ -69,87 +72,104 @@ class MetadataRetriever:
         return res
 
     def _retrieve_model_metadata(self, model) -> list:
-        res = []
-        model_name = ""
-        if isinstance(model, LogisticRegression):
-            model_name = "logistic_regression"
-            res.append(
-                get_int_definition("n_thetas", model.coef_.shape[1] + 1, self.language)
-            )  # +1 for intercept
-            res.append(
-                get_int_definition("n_classes", len(model.classes_), self.language)
-            )
-            res.append(
-                get_string_list_definition("classes", model.classes_, self.language)
-            )
-            if len(model.classes_) == 2:
-                res.append(
-                    get_double_list_definition(
-                        "thetas",
-                        model.intercept_.tolist() + model.coef_[0].tolist(),
-                        self.language,
-                    )
-                )
-            else:
-                coefs = model.coef_.tolist()
-                for i, intercept in enumerate(model.intercept_):
-                    coefs[i] = [intercept] + coefs[i]
-                res.append(get_double_matrix_definition("thetas", coefs, self.language))
-        elif isinstance(model, LinearRegression):
-            model_name = "linear_regression"
-            res.append(
-                get_int_definition("n_thetas", model.coef_.shape[0] + 1, self.language)
-            )  # +1 for intercept
-            res.append(
-                get_double_list_definition(
-                    "thetas", [model.intercept_] + model.coef_.tolist(), self.language
-                )
-            )
-        elif isinstance(model, DecisionTreeClassifier):
-            model_name = "decision_tree"
-            res.append(
-                get_int_definition("n_classes", len(model.classes_), self.language)
-            )
-            res.append(
-                get_string_list_definition("classes", model.classes_, self.language)
-            )
-            res.append(
-                get_int_definition("n_input", model.n_features_in_, self.language)
-            )
-            res.append(
-                get_int_definition(
-                    "n_features", len(model.tree_.feature), self.language
-                )
-            )
-            res.append(
-                get_int_list_definition("features", model.tree_.feature, self.language)
-            )
-            res.append(
-                get_double_list_definition(
-                    "thresholds", model.tree_.threshold, self.language
-                )
-            )
-            res.append(
-                get_int_list_definition(
-                    "children_left", model.tree_.children_left, self.language
-                )
-            )
-            res.append(
-                get_int_list_definition(
-                    "children_right", model.tree_.children_right, self.language
-                )
-            )
-            res.append(
-                get_double_matrix_definition(
-                    "values", np.squeeze(model.tree_.value), self.language
-                )
-            )
-        else:
-            raise ValueError(f"Unsupported model type: {type(model)}")
-        return res, model_name
+        raise ValueError("This method should be overwritten.")
 
     def retrieve_metadata(self) -> list:
         preprocessing_metadata = self._retrieve_preprocessing()
-        model_metadata, model_name = self._retrieve_model_metadata(self._get_model())
+        model_metadata = self._retrieve_model_metadata(self._get_model())
         model_metadata.extend(preprocessing_metadata)
-        return model_metadata, model_name
+        return model_metadata, self.model_name
+
+
+class LinearRegressionMetadataRetriever(MetadataRetriever):
+    def __init__(self, model, language: str):
+        super().__init__(model, language)
+        if not isinstance(self._get_model(), LinearRegression):
+            raise ValueError("Model must be an instance of LinearRegression.")
+        self.model_name = "linear_regression"
+
+    def _retrieve_model_metadata(self, model) -> list:
+        res = []
+        res.append(
+            get_int_definition("n_thetas", model.coef_.shape[0] + 1, self.language)
+        )  # +1 for intercept
+        res.append(
+            get_double_list_definition(
+                "thetas", [model.intercept_] + model.coef_.tolist(), self.language
+            )
+        )
+
+        return res
+
+
+class LogisticRegressionMetadataRetriever(MetadataRetriever):
+    def __init__(self, model, language: str):
+        super().__init__(model, language)
+        if not isinstance(self._get_model(), LogisticRegression):
+            raise ValueError("Model must be an instance of LogisticRegression.")
+        self.model_name = "logistic_regression"
+
+    def _retrieve_model_metadata(self, model) -> list:
+        res = []
+        res.append(
+            get_int_definition("n_thetas", model.coef_.shape[1] + 1, self.language)
+        )  # +1 for intercept
+        res.append(get_int_definition("n_classes", len(model.classes_), self.language))
+        res.append(get_string_list_definition("classes", model.classes_, self.language))
+        if len(model.classes_) == 2:
+            res.append(
+                get_double_matrix_definition(
+                    "thetas",
+                    [model.intercept_.tolist() + model.coef_[0].tolist()],
+                    self.language,
+                )
+            )
+        else:
+            coefs = model.coef_.tolist()
+            for i, intercept in enumerate(model.intercept_):
+                coefs[i] = [intercept] + coefs[i]
+            res.append(get_double_matrix_definition("thetas", coefs, self.language))
+
+        return res
+
+
+class DecisionTreeClassifierMetadataRetriever(MetadataRetriever):
+    def __init__(self, model, language: str):
+        super().__init__(model, language)
+        if not isinstance(self._get_model(), DecisionTreeClassifier):
+            raise ValueError("Model must be an instance of DecisionTreeClassifier.")
+        self.model_name = "decision_tree"
+
+    def _retrieve_model_metadata(self, model) -> list:
+        res = []
+        res.append(get_int_definition("n_classes", len(model.classes_), self.language))
+        res.append(get_string_list_definition("classes", model.classes_, self.language))
+        res.append(get_int_definition("n_input", model.n_features_in_, self.language))
+        res.append(
+            get_int_definition("n_features", len(model.tree_.feature), self.language)
+        )
+        res.append(
+            get_int_list_definition("features", model.tree_.feature, self.language)
+        )
+        res.append(
+            get_double_list_definition(
+                "thresholds", model.tree_.threshold, self.language
+            )
+        )
+        res.append(
+            get_int_list_definition(
+                "children_left", model.tree_.children_left, self.language
+            )
+        )
+        res.append(
+            get_int_list_definition(
+                "children_right", model.tree_.children_right, self.language
+            )
+        )
+        res.append(
+            get_double_matrix_definition(
+                "values", np.squeeze(model.tree_.value), self.language
+            )
+        )
+
+        return res

@@ -10,7 +10,7 @@ int main(int argc, char** argv){
     }
 
     if (n_classes == 2) {
-        double pred = logistic_regression(inputs, thetas, n_thetas);
+        double pred = logistic_regression(inputs, thetas[0], n_thetas);
     
         int max_i = pred < 0.5 ? 0 : 1;
     
@@ -22,12 +22,14 @@ int main(int argc, char** argv){
         double max = -1;
 
         for (int i = 0; i < n_classes; i++) {
-            double pred = logistic_regression(inputs, thetas[i], n_parameters);
+            double pred = logistic_regression(inputs, thetas[i], n_thetas);
             if (pred > max) {
                 max = pred;
                 max_i = i;
             }
         }
+        printf("Prediction: %f\n", max);
+        printf("Predicted class: %s\n", classes[max_i]);
     }
     return 0;
 }
