@@ -1,6 +1,15 @@
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
-from src.metadata_retriever.utils import get_preprocessing_id, get_list, get_matrix, get_string_list
+from src.metadata_retriever.utils import (
+    get_int_list_definition,
+    get_preprocessing_id,
+    get_string_list_definition,
+    get_double_matrix_definition,
+    get_double_list_definition,
+    get_int_definition,
+    get_double_definition,
+    get_bool_definition,
+)
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.tree import DecisionTreeClassifier
 import numpy as np
@@ -19,54 +28,55 @@ class MetadataRetriever():
         else:
             return self.model
 
-    def _retrieve_preprocessing(self) -> dict:
-        res = dict()
+    def _retrieve_preprocessing(self) -> list:
+        res = []
         if isinstance(self.model, Pipeline):
             for _, step in self.model.steps:
                 if isinstance(step, MinMaxScaler):
-                    res["preprocessing_type"] = get_preprocessing_id("min_max_scaler")
-                    res["data_min"] = get_list(step.data_min_, self.language)
-                    res["data_max"] = get_list(step.data_max_, self.language)
-                    res["feature_range"] = get_list(step.feature_range, self.language)
-                    res["clip"] = str(step.clip).lower()
+                    res.append(get_preprocessing_id("min_max_scaler"))
+                    res.append(get_double_list_definition("data_min", step.data_min_, self.language))
+                    res.append(get_double_list_definition("data_max", step.data_max_, self.language))
+                    res.append(get_double_list_definition("feature_range", step.feature_range, self.language))
+                    res.append(get_bool_definition("clip", step.clip, self.language))
                     break
             else:
-                res["preprocessing_type"] = get_preprocessing_id(None)
+                res.append(get_int_definition("preprocessing_type", get_preprocessing_id(None), self.language))
         else:
-            res["preprocessing_type"] = get_preprocessing_id(None)
+            res.append(get_int_definition("preprocessing_type", get_preprocessing_id(None), self.language))
         return res
 
-    def _retrieve_model_metadata(self, model) -> dict:
-        res = dict()
+    def _retrieve_model_metadata(self, model) -> list:
+        res = []
         if isinstance(model, LogisticRegression):
-            res["n_thetas"] = model.coef_.shape[1] + 1  # +1 for intercept
-            res["n_classes"] = len(model.classes_)
-            res["classes"] = get_string_list(model.classes_, self.language)
+            res.append(get_int_definition("n_thetas", model.coef_.shape[1] + 1, self.language))  # +1 for intercept
+            res.append(get_int_definition("n_classes", len(model.classes_), self.language))
+            res.append(get_string_list_definition("classes", model.classes_, self.language))
             if len(model.classes_) == 2:
-                res["thetas"] = get_list(model.intercept_.tolist() + model.coef_[0].tolist(), self.language)
+                res.append(get_double_list_definition("thetas", model.intercept_.tolist() + model.coef_[0].tolist(), self.language))
             else:
                 coefs = model.coef_.tolist()
                 for i, intercept in enumerate(model.intercept_):
                     coefs[i] = [intercept] + coefs[i]
-                res["thetas"] = get_matrix(coefs, self.language)
+                res.append(get_double_matrix_definition("thetas", coefs, self.language))
         elif isinstance(model, LinearRegression):
-            res["n_thetas"] = model.coef_.shape[0] + 1  # +1 for intercept
-            res["thetas"] = get_list([model.intercept_] + model.coef_.tolist(), self.language)
+            res.append(get_int_definition("n_thetas", model.coef_.shape[0] + 1, self.language))  # +1 for intercept
+            res.append(get_double_list_definition("thetas", [model.intercept_] + model.coef_.tolist(), self.language))
         elif isinstance(model, DecisionTreeClassifier):
-            res["n_classes"] = len(model.classes_)
-            res["classes"] = get_string_list(model.classes_, self.language)
-            res["n_input"] = model.n_features_in_
-            res["n_features"] = len(model.tree_.feature)
-            res["features"] = get_list(model.tree_.feature, self.language)
-            res["thresholds"] = get_list(model.tree_.threshold, self.language)
-            res["children_left"] = get_list(model.tree_.children_left, self.language)
-            res["children_right"] = get_list(model.tree_.children_right, self.language)
-            res["values"] = get_matrix(np.squeeze(model.tree_.value), self.language)
+            res.append(get_int_definition("n_classes", len(model.classes_), self.language))
+            res.append(get_string_list_definition("classes", model.classes_, self.language))
+            res.append(get_int_definition("n_input", model.n_features_in_, self.language))
+            res.append(get_int_definition("n_features", len(model.tree_.feature), self.language))
+            res.append(get_int_list_definition("features", model.tree_.feature, self.language))
+            res.append(get_double_list_definition("thresholds", model.tree_.threshold, self.language))
+            res.append(get_int_list_definition("children_left", model.tree_.children_left, self.language))
+            res.append(get_int_list_definition("children_right", model.tree_.children_right, self.language))
+            res.append(get_double_matrix_definition("values", np.squeeze(model.tree_.value), self.language))
         else:
             raise ValueError(f"Unsupported model type: {type(model)}")
         return res
 
-    def retrieve_metadata(self) -> dict:
+    def retrieve_metadata(self) -> list:
         preprocessing_metadata = self._retrieve_preprocessing()
         model_metadata = self._retrieve_model_metadata(self._get_model())
-        return dict(model_metadata, **preprocessing_metadata)
+        model_metadata.extend(preprocessing_metadata)
+        return model_metadata
