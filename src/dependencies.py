@@ -4,7 +4,6 @@ DEPENDENCIES_C = {
     "pow": [],
     "factorial": [],
     "logistic_regression": ["sigmoid", "linear_regression"],
-    "logistic_linear_regression": ["linear_regression"],
     "linear_regression": [],
     "decision_tree": [],
 }
