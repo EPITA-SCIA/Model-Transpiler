@@ -36,39 +36,34 @@ class MetadataRetriever:
 
     def _retrieve_preprocessing(self) -> list:
         res = []
+        target_model = self._get_model()
+        n_features = getattr(target_model, "n_features_in_", 1)
+
+        preprocessing_id = get_preprocessing_id(None)
+        data_min = [0.0] * n_features
+        data_max = [1.0] * n_features
+        feature_range = [0.0, 1.0]
+        clip_val = False
+
         if isinstance(self.model, Pipeline):
             for _, step in self.model.steps:
                 if isinstance(step, MinMaxScaler):
-                    res.append(get_preprocessing_id("min_max_scaler"))
-                    res.append(
-                        get_double_list_definition(
-                            "data_min", step.data_min_, self.language
-                        )
-                    )
-                    res.append(
-                        get_double_list_definition(
-                            "data_max", step.data_max_, self.language
-                        )
-                    )
-                    res.append(
-                        get_double_list_definition(
-                            "feature_range", step.feature_range, self.language
-                        )
-                    )
-                    res.append(get_bool_definition("clip", step.clip, self.language))
+                    preprocessing_id = get_preprocessing_id("min_max_scaler")
+                    data_min = step.data_min_.tolist()
+                    data_max = step.data_max_.tolist()
+                    feature_range = list(step.feature_range)
+                    clip_val = bool(step.clip)
                     break
-            else:
-                res.append(
-                    get_int_definition(
-                        "preprocessing_type", get_preprocessing_id(None), self.language
-                    )
-                )
-        else:
-            res.append(
-                get_int_definition(
-                    "preprocessing_type", get_preprocessing_id(None), self.language
-                )
-            )
+
+        res.append(
+            get_int_definition("preprocessing_type", preprocessing_id, self.language)
+        )
+        res.append(get_double_list_definition("data_min", data_min, self.language))
+        res.append(get_double_list_definition("data_max", data_max, self.language))
+        res.append(
+            get_double_list_definition("feature_range", feature_range, self.language)
+        )
+        res.append(get_bool_definition("clip", clip_val, self.language))
         return res
 
     def _retrieve_model_metadata(self, model) -> list:

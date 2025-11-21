@@ -23,6 +23,9 @@
             $finish(1);
         end
 
+        // Preprocessing (in-place on input_v)
+        preprocessing(expected_args);
+
         pred = linear_regression(0, n_thetas);
 
         $display("Prediction: %f", pred);

@@ -34,6 +34,8 @@ class Transpiler:
         res += "\n".join(metadata) + "\n"
 
         dependencies = get_dependencies(model_name, self.language)
+        # Always include preprocessing support
+        res += function_loader[self.language]["regular"]["preprocessing"]
         for dep in dependencies:
             res += function_loader[self.language]["regular"][dep]
 
@@ -52,6 +54,8 @@ class Transpiler:
         res += "\n".join(metadata) + "\n"
 
         dependencies = get_dependencies(model_name, self.language)
+        # Always include preprocessing support
+        res += function_loader[self.language]["regular"]["preprocessing"]
         for dep in dependencies:
             res += function_loader[self.language]["regular"][dep]
 

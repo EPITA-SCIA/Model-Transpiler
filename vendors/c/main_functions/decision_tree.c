@@ -9,6 +9,8 @@ int main(int argc, char** argv){
         inputs[i-1] = atof(argv[i]);
     }
 
+    preprocessing(inputs, n_input);
+
     int pred = decision_tree(n_features, n_classes, inputs, features, thresholds, children_left, children_right, values);
 
     printf("Predicted class: %s\n", classes[pred]);

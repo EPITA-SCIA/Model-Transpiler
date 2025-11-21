@@ -25,6 +25,9 @@
             $finish(1);
         end
 
+        // Preprocessing (in-place on input_v)
+        preprocessing(expected_args);
+
         if (n_classes == 2) begin
             pred = logistic_regression(0, n_thetas);
             max_i = (pred < 0.5) ? 0 : 1;

@@ -9,6 +9,8 @@ int main(int argc, char** argv){
         inputs[i-1] = atof(argv[i]);
     }
 
+    preprocessing(inputs, n_thetas - 1);
+
     if (n_classes == 2) {
         double pred = logistic_regression(inputs, thetas[0], n_thetas);
     

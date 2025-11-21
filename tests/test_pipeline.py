@@ -61,6 +61,12 @@ def _compile_verilog(source: Path, binary: Path):
     )
 
 
+def _make_inputs(model) -> list[float]:
+    """Generate deterministic non-zero inputs based on the model feature count."""
+    n_features = int(getattr(model, "n_features_in_", 1))
+    return [float(i + 1) for i in range(n_features)]
+
+
 def _run_and_parse_prediction(cmd: list[str]) -> float:
     proc = subprocess.run(cmd, check=True, capture_output=True, text=True)
     match = re.search(r"Prediction:\s*([+-]?\d*\.?\d+(?:[eE][+-]?\d+)?)", proc.stdout)
@@ -114,8 +120,7 @@ def test_linear_outputs_match_python_c_verilog():
     fl = _load_function_loader()
     linear_model_path = MODELS_DIR / "linear.joblib"
     model = joblib.load(linear_model_path)
-    n_features = model.n_features_in_
-    inputs = [float(i + 1) for i in range(n_features)]  # simple deterministic inputs
+    inputs = _make_inputs(model)  # simple deterministic inputs
 
     python_pred = float(model.predict([inputs])[0])
 
@@ -146,8 +151,7 @@ def test_logistic_binary_outputs_match_python_c_verilog():
     fl = _load_function_loader()
     model_path = MODELS_DIR / "logistic_binary.joblib"
     model = joblib.load(model_path)
-    n_features = model.n_features_in_
-    inputs = [float(i + 1) for i in range(n_features)]
+    inputs = _make_inputs(model)
 
     python_prob = float(model.predict_proba([inputs])[0][1])
     python_class = str(model.predict([inputs])[0])
@@ -179,8 +183,7 @@ def test_logistic_multi_outputs_match_python_c_verilog():
     fl = _load_function_loader()
     model_path = MODELS_DIR / "logistic_multi.joblib"
     model = joblib.load(model_path)
-    n_features = model.n_features_in_
-    inputs = [float(i + 1) for i in range(n_features)]
+    inputs = _make_inputs(model)
 
     python_class = str(model.predict([inputs])[0])
 
@@ -208,8 +211,7 @@ def test_tree_outputs_match_python_c_verilog():
     fl = _load_function_loader()
     model_path = MODELS_DIR / "tree.joblib"
     model = joblib.load(model_path)
-    n_features = model.n_features_in_
-    inputs = np.array([float(i + 1) for i in range(n_features)]).reshape(1, -1)
+    inputs = np.array(_make_inputs(model)).reshape(1, -1)
 
     python_class = str(model.predict(inputs)[0])
 
@@ -231,3 +233,148 @@ def test_tree_outputs_match_python_c_verilog():
 
     assert c_class == python_class
     assert v_class == python_class
+
+
+def test_linear_minmax_outputs_match_python_c_verilog():
+    fl = _load_function_loader()
+    model_path = MODELS_DIR / "linear_minmax.joblib"
+    model = joblib.load(model_path)
+    base_inputs = _make_inputs(model)
+    out_inputs = [x + 10.0 for x in base_inputs]
+    python_pred = float(model.predict([base_inputs])[0])
+    python_pred_out = float(model.predict([out_inputs])[0])
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        c_source = tmpdir_path / "linear_mm.c"
+        v_source = tmpdir_path / "linear_mm.v"
+        c_bin = tmpdir_path / "linear_mm_c.out"
+        v_bin = tmpdir_path / "linear_mm_v.out"
+
+        _transpile_model(model_path, "c", c_source, fl)
+        _transpile_model(model_path, "verilog", v_source, fl)
+        _compile_c(c_source, c_bin)
+        _compile_verilog(v_source, v_bin)
+
+        args_base = [str(val) for val in base_inputs]
+        args_out = [str(val) for val in out_inputs]
+        c_pred = _run_and_parse_prediction([str(c_bin), *args_base])
+        v_pred = _run_and_parse_prediction([str(v_bin), *args_base])
+        c_pred_out = _run_and_parse_prediction([str(c_bin), *args_out])
+        v_pred_out = _run_and_parse_prediction([str(v_bin), *args_out])
+
+    tol = 1e-5
+    assert abs(c_pred - python_pred) < tol
+    assert abs(v_pred - python_pred) < tol
+    assert abs(c_pred_out - python_pred_out) < tol
+    assert abs(v_pred_out - python_pred_out) < tol
+
+
+def test_logistic_binary_minmax_outputs_match_python_c_verilog():
+    fl = _load_function_loader()
+    model_path = MODELS_DIR / "logistic_binary_minmax.joblib"
+    model = joblib.load(model_path)
+    base_inputs = _make_inputs(model)
+    out_inputs = [x + 10.0 for x in base_inputs]
+
+    python_prob = float(model.predict_proba([base_inputs])[0][1])
+    python_class = str(model.predict([base_inputs])[0])
+    python_prob_out = float(model.predict_proba([out_inputs])[0][1])
+    python_class_out = str(model.predict([out_inputs])[0])
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        c_source = tmpdir_path / "logistic_bin_mm.c"
+        v_source = tmpdir_path / "logistic_bin_mm.v"
+        c_bin = tmpdir_path / "logistic_bin_mm_c.out"
+        v_bin = tmpdir_path / "logistic_bin_mm_v.out"
+
+        _transpile_model(model_path, "c", c_source, fl)
+        _transpile_model(model_path, "verilog", v_source, fl)
+        _compile_c(c_source, c_bin)
+        _compile_verilog(v_source, v_bin)
+
+        args_base = [str(val) for val in base_inputs]
+        args_out = [str(val) for val in out_inputs]
+        c_pred, c_class = _run_and_parse_prediction_and_class([str(c_bin), *args_base])
+        v_pred, v_class = _run_and_parse_prediction_and_class([str(v_bin), *args_base])
+        c_pred_out, c_class_out = _run_and_parse_prediction_and_class([str(c_bin), *args_out])
+        v_pred_out, v_class_out = _run_and_parse_prediction_and_class([str(v_bin), *args_out])
+
+    tol = 1e-3
+    assert abs(c_pred - python_prob) < tol
+    assert abs(v_pred - python_prob) < tol
+    assert c_class == python_class
+    assert v_class == python_class
+    assert abs(c_pred_out - python_prob_out) < tol
+    assert abs(v_pred_out - python_prob_out) < tol
+    assert c_class_out == python_class_out
+    assert v_class_out == python_class_out
+
+
+def test_logistic_multi_minmax_outputs_match_python_c_verilog():
+    fl = _load_function_loader()
+    model_path = MODELS_DIR / "logistic_multi_minmax.joblib"
+    model = joblib.load(model_path)
+    base_inputs = _make_inputs(model)
+    out_inputs = [x + 10.0 for x in base_inputs]
+    python_class = str(model.predict([base_inputs])[0])
+    python_class_out = str(model.predict([out_inputs])[0])
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        c_source = tmpdir_path / "logistic_multi_mm.c"
+        v_source = tmpdir_path / "logistic_multi_mm.v"
+        c_bin = tmpdir_path / "logistic_multi_mm_c.out"
+        v_bin = tmpdir_path / "logistic_multi_mm_v.out"
+
+        _transpile_model(model_path, "c", c_source, fl)
+        _transpile_model(model_path, "verilog", v_source, fl)
+        _compile_c(c_source, c_bin)
+        _compile_verilog(v_source, v_bin)
+
+        args_base = [str(val) for val in base_inputs]
+        args_out = [str(val) for val in out_inputs]
+        _, c_class = _run_and_parse_prediction_and_class([str(c_bin), *args_base])
+        _, v_class = _run_and_parse_prediction_and_class([str(v_bin), *args_base])
+        _, c_class_out = _run_and_parse_prediction_and_class([str(c_bin), *args_out])
+        _, v_class_out = _run_and_parse_prediction_and_class([str(v_bin), *args_out])
+
+    assert c_class == python_class
+    assert v_class == python_class
+    assert c_class_out == python_class_out
+    assert v_class_out == python_class_out
+
+
+def test_tree_minmax_outputs_match_python_c_verilog():
+    fl = _load_function_loader()
+    model_path = MODELS_DIR / "tree_minmax.joblib"
+    model = joblib.load(model_path)
+    base_inputs = np.array(_make_inputs(model)).reshape(1, -1)
+    out_inputs = np.array([x + 10.0 for x in _make_inputs(model)]).reshape(1, -1)
+    python_class = str(model.predict(base_inputs)[0])
+    python_class_out = str(model.predict(out_inputs)[0])
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        c_source = tmpdir_path / "tree_mm.c"
+        v_source = tmpdir_path / "tree_mm.v"
+        c_bin = tmpdir_path / "tree_mm_c.out"
+        v_bin = tmpdir_path / "tree_mm_v.out"
+
+        _transpile_model(model_path, "c", c_source, fl)
+        _transpile_model(model_path, "verilog", v_source, fl)
+        _compile_c(c_source, c_bin)
+        _compile_verilog(v_source, v_bin)
+
+        args_base = [str(val) for val in base_inputs.flatten()]
+        args_out = [str(val) for val in out_inputs.flatten()]
+        _, c_class = _run_and_parse_prediction_and_class([str(c_bin), *args_base])
+        _, v_class = _run_and_parse_prediction_and_class([str(v_bin), *args_base])
+        _, c_class_out = _run_and_parse_prediction_and_class([str(c_bin), *args_out])
+        _, v_class_out = _run_and_parse_prediction_and_class([str(v_bin), *args_out])
+
+    assert c_class == python_class
+    assert v_class == python_class
+    assert c_class_out == python_class_out
+    assert v_class_out == python_class_out

@@ -9,6 +9,8 @@ int main(int argc, char** argv){
         inputs[i-1] = atof(argv[i]);
     }
 
+    preprocessing(inputs, n_thetas - 1);
+
     printf("Prediction: %f\n", linear_regression(inputs, thetas, n_thetas));
     return 0;
 }

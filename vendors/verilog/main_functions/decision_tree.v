@@ -20,6 +20,9 @@
             $finish(1);
         end
 
+        // Preprocessing (in-place on input_v)
+        preprocessing(n_input);
+
         pred = decision_tree(0);
 
         $display("Predicted class: %s", classes[pred]);
