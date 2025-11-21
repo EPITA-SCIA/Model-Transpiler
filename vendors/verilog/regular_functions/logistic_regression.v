@@ -1,29 +1,16 @@
-    // Helper performing per-class linear combination for logistic models
-    // Renamed to avoid collision with pure linear regression helpers
-    function real logistic_linear_regression;
-        input integer class_idx;
-        integer i;
-        real res;
-        begin
-            res = thetas(class_idx, 0);
-            for (i = 0; i < n_thetas - 1; i = i + 1)
-                res = res + input_v[i] * thetas(class_idx, i+1);
-            logistic_linear_regression = res;
-        end
-    endfunction
-
-    // Logistic regression probability for a given class index
+    // Logistic regression probability for a given theta vector
     function real logistic_regression;
-        input integer class_idx;
+        input integer theta_idx;
+        input integer n_parameters;
         begin
-            logistic_regression = sigmoid(logistic_linear_regression(class_idx));
+            logistic_regression = sigmoid(logistic_linear_regression(theta_idx, n_parameters));
         end
     endfunction
 
-    // Public prediction helper (default class index 0)
+    // Convenience wrapper using the first theta vector by default
     function real logistic_prediction;
         input integer dummy;
         begin
-            logistic_prediction = logistic_regression(0);
+            logistic_prediction = logistic_regression(0, n_thetas);
         end
     endfunction

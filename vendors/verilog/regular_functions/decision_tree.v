@@ -1,4 +1,4 @@
-    // Decision tree classification using module-level arrays
+    // Decision tree classification matching the C helper signature.
     function integer decision_tree;
         input integer dummy; // unused, kept for compatibility
         integer node;
@@ -9,7 +9,6 @@
         integer i;
         begin
             node = 0;
-            // Traverse tree until leaf node (features[node] == -2)
             while (features[node] != -2) begin
                 feat = features[node];
                 thresh = thresholds[node];
@@ -18,13 +17,12 @@
                 else
                     node = children_right[node];
             end
-            
-            // Find class with max value at leaf
+
             max_i = 0;
-            max_val = values(node, 0);
-            for (i = 1; i < n_classes; i = i + 1) begin
-                if (values(node, i) > max_val) begin
-                    max_val = values(node, i);
+            max_val = -1.0;
+            for (i = 0; i < n_classes; i = i + 1) begin
+                if (values[node][i] > max_val) begin
+                    max_val = values[node][i];
                     max_i = i;
                 end
             end

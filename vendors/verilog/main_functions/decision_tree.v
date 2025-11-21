@@ -1,26 +1,25 @@
-    // Fixed-size input array
-    real input_v[0:2]; // adjust size as needed or make generic
+    parameter integer MAX_INPUTS = 64; // buffer size for inputs
+    // Inputs mirror the C main: expects n_input feature values
+    real input_v[0:MAX_INPUTS-1];
     integer pred;
-    real tmp;
+    integer parsed_args;
+    reg [8*64-1:0] program_name;
+    integer i;
     initial begin
-        // Initialize inputs (default values)
-        input_v[0] = 5.1;
-        input_v[1] = 3.5;
-        input_v[2] = 1.4;
+        if (n_input > MAX_INPUTS) begin
+            $display("Configured feature count (%0d) exceeds MAX_INPUTS buffer", n_input);
+            $finish(1);
+        end
 
-        // Positional arguments override defaults
-        parse_positional_args();
+        for (i = 0; i < n_input; i = i + 1)
+            input_v[i] = 0.0;
 
-        // Named plusargs override anything earlier
-        if ($value$plusargs("x0=%f", tmp)) input_v[0] = tmp;
-        if ($value$plusargs("x1=%f", tmp)) input_v[1] = tmp;
-        if ($value$plusargs("x2=%f", tmp)) input_v[2] = tmp;
-        
-        $display("Input 1: %f", input_v[0]);
-        $display("Input 2: %f", input_v[1]);
-        $display("Input 3: %f", input_v[2]);
+        parse_positional_args(n_input, parsed_args, program_name);
+        if (parsed_args != n_input) begin
+            $display("Usage: %0s <feature1> <feature2> ... <featureN>", program_name);
+            $finish(1);
+        end
 
-        // Prediction
         pred = decision_tree(0);
 
         $display("Predicted class: %s", classes[pred]);

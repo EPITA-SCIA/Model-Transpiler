@@ -14,25 +14,52 @@ class Transpiler:
         self.output_file = output_file
 
     def transpile(self, function_loader: FunctionLoader):
+        if self.language == "c":
+            self._transpile_to_c(function_loader)
+        elif self.language == "verilog":
+            self._transpile_to_verilog(function_loader)
+        else:
+            raise ValueError(f"Unsupported language: {self.language}")
+
+    def _transpile_to_c(self, function_loader: FunctionLoader):
         res = ""
-        if self.language == "verilog":
-            res += "module main;\n"
-        # metadata_retriever = MetadataRetriever(model=self.model, language=self.language)
+
         metadata_retriever = get_metadata_retriever_class(model=self.model)(
             model=self.model, language=self.language
         )
+
         metadata, model_name = metadata_retriever.retrieve_metadata()
+
         res += function_loader[self.language]["regular"]["includes"] + "\n"
         res += "\n".join(metadata) + "\n"
-        dependencies = get_dependencies(model_name)
+
+        dependencies = get_dependencies(model_name, self.language)
         for dep in dependencies:
             res += function_loader[self.language]["regular"][dep]
+
+        res += function_loader[self.language]["regular"][model_name]
+        res += function_loader[self.language]["main"][model_name]
+        write_to_file(self.output_file, res)
+
+    def _transpile_to_verilog(self, function_loader: FunctionLoader):
+        res = "module main;\n"
+
+        metadata_retriever = get_metadata_retriever_class(model=self.model)(
+            model=self.model, language=self.language
+        )
+
+        metadata, model_name = metadata_retriever.retrieve_metadata()
+        res += "\n".join(metadata) + "\n"
+
+        dependencies = get_dependencies(model_name, self.language)
+        for dep in dependencies:
+            res += function_loader[self.language]["regular"][dep]
+
         res += function_loader[self.language]["regular"][model_name]
 
-        if self.language == "verilog":
-            # Every model will have a part to parse inputs
-            res += function_loader[self.language]["main"]["argparse"]
+        res += function_loader[self.language]["main"]["argparse"]
         res += function_loader[self.language]["main"][model_name]
-        if self.language == "verilog":
-            res += "endmodule\n"
+
+        res += "endmodule\n"
+
         write_to_file(self.output_file, res)
