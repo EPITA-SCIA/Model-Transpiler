@@ -79,18 +79,20 @@ def get_double_list_definition(name: str, python_list: list, language: str):
 
 
 def get_string_list_definition(name: str, python_list: list, language: str):
+    # Materialize as strings to handle non-string labels (e.g., bools)
+    stringified = [str(x) for x in python_list]
     if language == "c":
         return (
-            f"char *{name}[{len(python_list)}] = "
-            + _get_list(map(lambda x: f'"{str(x)}"', python_list), language)
+            f"char *{name}[{len(stringified)}] = "
+            + _get_list(map(lambda x: f'"{x}"', stringified), language)
             + ";"
         )
     elif language == "verilog":
-        max_length = len(max(map(lambda x: f'"{str(x)}"', python_list), key=len))
+        max_length = len(max(map(lambda x: f'"{x}"', stringified), key=len))
         return (
-            f"reg [8*{max_length}-1:0] {name}[0:{len(python_list) - 1}];\n"
+            f"reg [8*{max_length}-1:0] {name}[0:{len(stringified) - 1}];\n"
             + _get_list(
-                map(lambda x: f'"{str(x)}"', python_list),
+                map(lambda x: f'"{x}"', stringified),
                 language,
                 _verilog_list_name=name,
             )
