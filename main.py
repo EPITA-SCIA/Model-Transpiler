@@ -2,9 +2,19 @@ import configparser
 from pathlib import Path
 
 import joblib
+import torch
 
 from src.function_loader import FunctionLoader
 from src.transpiler import Transpiler
+
+
+def _load_model(path: Path):
+    if str(path).endswith(".joblib"):
+        return joblib.load(path)
+    elif str(path).endswith(".pth"):
+        return torch.load(path)
+    else:
+        raise ValueError("Unsupported model file format.")
 
 
 def main():
@@ -13,7 +23,7 @@ def main():
 
     function_loader = FunctionLoader(conf["FunctionLoader"])
 
-    model = joblib.load("models/logistic_multi.joblib")
+    model = _load_model(Path("models/logistic_multi.joblib"))
     transpiler = Transpiler(
         model=model,
         language="verilog",

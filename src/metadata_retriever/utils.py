@@ -28,9 +28,9 @@ def _get_list(python_list: list, language: str, _verilog_list_name: str = None) 
 def _get_matrix(
     python_matrix: list, language: str, _verilog_list_name: str = None
 ) -> str:
-    rows = [_get_list(row, language, _verilog_list_name) for row in python_matrix]
     if language == "c":
         assert _verilog_list_name is None
+        rows = [_get_list(row, language, _verilog_list_name) for row in python_matrix]
         return "{" + ", ".join(rows) + "}"
     elif language == "verilog":
         assert _verilog_list_name is not None

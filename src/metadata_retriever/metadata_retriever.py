@@ -168,3 +168,19 @@ class DecisionTreeClassifierMetadataRetriever(MetadataRetriever):
         )
 
         return res
+
+
+class MLPMetadataRetriever(MetadataRetriever):
+    def __init__(self, model, language):
+        super().__init__(model, language)
+        self.model_name = "mlp"
+
+    def _get_model(self):
+        return self.model
+
+    def _retrieve_preprocessing(self) -> list:
+        return []
+
+    def _retrieve_model_metadata(self, model) -> list:
+        # TODO : implement the function
+        pass
