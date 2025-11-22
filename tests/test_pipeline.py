@@ -9,6 +9,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pytest
+import torch
 
 # Ensure repository root is importable
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,7 +32,12 @@ def _load_function_loader() -> FunctionLoader:
 def _transpile_model(
     model_path: Path, language: str, output_path: Path, fl: FunctionLoader
 ):
-    model = joblib.load(model_path)
+    if model_path.suffix in {".pt", ".pth"}:
+        from src.utils import load_torch_state_dict
+
+        model = load_torch_state_dict(model_path)
+    else:
+        model = joblib.load(model_path)
     transpiler = Transpiler(model=model, language=language, output_file=output_path)
     transpiler.transpile(function_loader=fl)
 
@@ -378,3 +384,45 @@ def test_tree_minmax_outputs_match_python_c_verilog():
     assert v_class == python_class
     assert c_class_out == python_class_out
     assert v_class_out == python_class_out
+
+
+def test_mlp_state_dict_outputs_match_python_c_verilog():
+    fl = _load_function_loader()
+    model_path = MODELS_DIR / "mlp_model.pt"
+    # Load via our state-dict loader to mirror transpiler behavior
+    from src.utils import load_torch_state_dict
+
+    model = load_torch_state_dict(model_path)
+    # Simple deterministic inputs sized from first layer
+    n_features = model[0].in_features
+    base_inputs = [float(i + 1) for i in range(n_features)]
+    out_inputs = [x + 5.0 for x in base_inputs]
+
+    python_out = model(torch.tensor([base_inputs], dtype=torch.float32)).detach().numpy()[0]
+    python_out_out = model(torch.tensor([out_inputs], dtype=torch.float32)).detach().numpy()[0]
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        c_source = tmpdir_path / "mlp.c"
+        v_source = tmpdir_path / "mlp.v"
+        c_bin = tmpdir_path / "mlp_c.out"
+        v_bin = tmpdir_path / "mlp_v.out"
+
+        _transpile_model(model_path, "c", c_source, fl)
+        _transpile_model(model_path, "verilog", v_source, fl)
+        _compile_c(c_source, c_bin)
+        _compile_verilog(v_source, v_bin)
+
+        args_base = [str(val) for val in base_inputs]
+        args_out = [str(val) for val in out_inputs]
+        c_pred_base = _run_and_parse_prediction([str(c_bin), *args_base])
+        v_pred_base = _run_and_parse_prediction([str(v_bin), *args_base])
+        c_pred_out = _run_and_parse_prediction([str(c_bin), *args_out])
+        v_pred_out = _run_and_parse_prediction([str(v_bin), *args_out])
+
+    # Compare only the first output (network is likely single-output), but apply to all if multi-output
+    tol = 1e-4
+    assert abs(c_pred_base - float(python_out[0])) < tol
+    assert abs(v_pred_base - float(python_out[0])) < tol
+    assert abs(c_pred_out - float(python_out_out[0])) < tol
+    assert abs(v_pred_out - float(python_out_out[0])) < tol

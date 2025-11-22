@@ -3,9 +3,12 @@ DEPENDENCIES_C = {
     "exp_approx": ["factorial", "pow"],
     "pow": [],
     "factorial": [],
-    "logistic_regression": ["sigmoid", "linear_regression"],
-    "linear_regression": [],
-    "decision_tree": [],
+    "logistic_regression": ["sigmoid", "linear_regression", "preprocessing"],
+    "linear_regression": ["preprocessing"],
+    "decision_tree": ["preprocessing"],
+    "relu": [],
+    "mlp": ["relu", "preprocessing"],
+    "preprocessing": [],
 }
 
 # Verilog logistic regression uses a dedicated logistic_linear_regression that reads the
@@ -15,10 +18,13 @@ DEPENDENCIES_VERILOG = {
     "exp_approx": ["factorial", "pow"],
     "pow": [],
     "factorial": [],
-    "logistic_regression": ["sigmoid", "logistic_linear_regression"],
+    "logistic_regression": ["sigmoid", "logistic_linear_regression", "preprocessing"],
     "logistic_linear_regression": [],
-    "linear_regression": [],
-    "decision_tree": [],
+    "linear_regression": ["preprocessing"],
+    "decision_tree": ["preprocessing"],
+    "relu": [],
+    "mlp": ["relu", "preprocessing"],
+    "preprocessing": [],
 }
 
 

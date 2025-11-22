@@ -1,4 +1,5 @@
 import numpy as np
+import torch.nn as nn
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
@@ -8,6 +9,7 @@ from src.metadata_retriever.utils import (
     get_bool_definition,
     get_double_list_definition,
     get_double_matrix_definition,
+    get_double_tensor3_definition,
     get_int_definition,
     get_int_list_definition,
     get_preprocessing_id,
@@ -179,8 +181,92 @@ class MLPMetadataRetriever(MetadataRetriever):
         return self.model
 
     def _retrieve_preprocessing(self) -> list:
-        return []
+        # Use base preprocessing handling (e.g., MinMaxScaler in a pipeline or defaults)
+        return super()._retrieve_preprocessing()
 
     def _retrieve_model_metadata(self, model) -> list:
-        # TODO : implement the function
-        pass
+        # Flatten supported modules (Linear with optional following ReLU)
+        modules = []
+        if isinstance(model, nn.Sequential):
+            modules = list(model)
+        else:
+            modules = list(model.children())
+            if not modules and isinstance(model, nn.Module):
+                # If the module wraps its layers in attributes (not children), fall back to modules()
+                modules = [m for m in model.modules() if m is not model][0:]
+
+        weights = []
+        biases = []
+        activations = []  # 0: linear, 1: relu
+        layer_sizes = []
+
+        idx = 0
+        while idx < len(modules):
+            mod = modules[idx]
+            if isinstance(mod, nn.Flatten):
+                idx += 1
+                continue
+            if not isinstance(mod, nn.Linear):
+                raise ValueError(f"Unsupported layer type in MLP: {type(mod)}")
+
+            in_features = mod.in_features
+            out_features = mod.out_features
+
+            if not layer_sizes:
+                layer_sizes.append(in_features)
+            elif layer_sizes[-1] != in_features:
+                raise ValueError(
+                    f"Inconsistent layer sizes: expected {layer_sizes[-1]}, got {in_features}"
+                )
+            layer_sizes.append(out_features)
+
+            weight = mod.weight.detach().cpu().numpy().tolist()
+            bias = mod.bias.detach().cpu().numpy().tolist()
+
+            act = 0
+            if idx + 1 < len(modules) and isinstance(modules[idx + 1], nn.ReLU):
+                act = 1
+                idx += 1  # consume activation
+
+            weights.append(weight)
+            biases.append(bias)
+            activations.append(act)
+            idx += 1
+
+        n_layers = len(weights)
+        if n_layers == 0:
+            raise ValueError("No Linear layers found in MLP model.")
+
+        max_layer_size = max(layer_sizes)
+
+        # Pad weights/biases to dense tensors [n_layers][max][max] and [n_layers][max]
+        padded_weights = []
+        padded_biases = []
+        for l in range(n_layers):
+            in_dim = len(weights[l][0])
+            out_dim = len(weights[l])
+            padded_w = [
+                [0.0 for _ in range(max_layer_size)] for _ in range(max_layer_size)
+            ]
+            for o in range(out_dim):
+                for i in range(in_dim):
+                    padded_w[o][i] = weights[l][o][i]
+            padded_weights.append(padded_w)
+
+            padded_b = [0.0 for _ in range(max_layer_size)]
+            for o in range(out_dim):
+                padded_b[o] = biases[l][o]
+            padded_biases.append(padded_b)
+
+        res = []
+        res.append(get_int_definition("n_layers", n_layers, self.language))
+        res.append(get_int_definition("max_layer_size", max_layer_size, self.language))
+        if self.language == "verilog":
+            res.append(f"localparam integer MAX_LAYER_SIZE = {max_layer_size};")
+        res.append(get_int_list_definition("layer_sizes", layer_sizes, self.language))
+        res.append(get_int_list_definition("activations", activations, self.language))
+        res.append(
+            get_double_tensor3_definition("weights", padded_weights, self.language)
+        )
+        res.append(get_double_matrix_definition("biases", padded_biases, self.language))
+        return res

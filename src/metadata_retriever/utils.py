@@ -48,6 +48,27 @@ def _get_matrix(
         raise ValueError(f"Unsupported language: {language}")
 
 
+def _get_tensor3(
+    python_tensor: list, language: str, _verilog_list_name: str = None
+) -> str:
+    if language == "c":
+        assert _verilog_list_name is None
+        planes = [_get_matrix(plane, language) for plane in python_tensor]
+        return "{" + ", ".join(planes) + "}"
+    elif language == "verilog":
+        assert _verilog_list_name is not None
+        lines = []
+        for i in range(len(python_tensor)):
+            for j in range(len(python_tensor[i])):
+                for k in range(len(python_tensor[i][j])):
+                    lines.append(
+                        f"{_verilog_list_name}[{i}][{j}][{k}] = {python_tensor[i][j][k]};"
+                    )
+        return "initial begin\n" + "\n".join(lines) + "\nend"
+    else:
+        raise ValueError(f"Unsupported language: {language}")
+
+
 def get_int_list_definition(name: str, python_list: list, language: str):
     if language == "c":
         return (
@@ -112,6 +133,22 @@ def get_double_matrix_definition(name: str, python_matrix: list, language: str):
         return (
             f"reg real {name}[0:{len(python_matrix) - 1}][0:{len(python_matrix[0]) - 1}];\n"
             + _get_matrix(python_matrix, language, _verilog_list_name=name)
+        )
+    else:
+        raise ValueError(f"Unsupported language: {language}")
+
+
+def get_double_tensor3_definition(name: str, python_tensor: list, language: str):
+    if language == "c":
+        return (
+            f"double {name}[{len(python_tensor)}][{len(python_tensor[0])}][{len(python_tensor[0][0])}] = "
+            + _get_tensor3(python_tensor, language)
+            + ";"
+        )
+    elif language == "verilog":
+        return (
+            f"reg real {name}[0:{len(python_tensor) - 1}][0:{len(python_tensor[0]) - 1}][0:{len(python_tensor[0][0]) - 1}];\n"
+            + _get_tensor3(python_tensor, language, _verilog_list_name=name)
         )
     else:
         raise ValueError(f"Unsupported language: {language}")
